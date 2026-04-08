@@ -1,0 +1,108 @@
+plugins {
+    id 'java-library'
+    
+    // https://docs.gradle.org/current/userguide/publishing_maven.html
+    id 'maven-publish'
+}
+
+group = 'uk.co.magictractor'
+version = '0.0.1-SNAPSHOT'
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        
+            pom {
+                name = "${project.name.capitalize()}"
+                description = 'Create PDFs and other documents using a builder that abstracts use of Apache FOP.'
+                url = "https://github.com/magictractor/${project.name}"
+                inceptionYear = '2026'
+
+                licenses {
+                    license {
+                        name = 'Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'kend'
+                        name = 'Ken Dobson'
+                       // email = 'me@gmail.com'
+                    }
+                }
+                scm {
+                    // connection = 'scm:git:git:github.com/magictractor/${project.name}.git'
+                    // developerConnection = 'scm:git:ssh://github.com/magictractor/${project.name}.git'
+                    url = "https://github.com/magictractor/${project.name}"
+                }
+            }
+        }
+    }
+
+    repositories {
+        //maven {
+        //    name = 'myRepo'
+        //    url = layout.buildDirectory.dir("repo")
+        //}
+    }
+}
+
+// https://docs.gradle.org/current/userguide/declaring_repositories.html
+repositories {
+    mavenCentral()
+}
+
+test {
+    useJUnitPlatform()
+}
+
+java {
+    sourceSets.main.java.srcDirs += ['../util/src/main/java']
+    // for Refs (this package includes adapters for the Refs)
+    sourceSets.main.java.srcDirs += ['../service/src/main/java']
+
+    // TODO! revisit versions. Can be reduce with earlier versions of dependencies.
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    
+    withSourcesJar()
+    //withJavadocJar()
+}
+
+tasks.withType(Jar) {
+    destinationDirectory.set(file("$rootDir/jars"))
+}
+
+clean {
+    delete "$rootDir/jars"
+}
+
+// "libs.xxx" refers to libraries configured in version catalog in settings.gradle.
+dependencies {
+    // Logger API.
+    implementation libs.slf4j.api
+    // Logger implementation for unit tests.
+    runtimeOnly libs.logback.classic
+
+    /**
+        This project should have minimal dependencies other than testing libraries. 
+        Dependencies have compileOnly scope because some util packages will not 
+        require the dependency.
+     */
+    
+    // Joiners and Splitters are used by util.converters.
+    compileOnly libs.guava
+    
+    compileOnly("com.jayway.jsonpath:json-path:3.0.0")
+    compileOnly("com.google.code.gson:gson:2.13.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    
+    testImplementation libs.junit.jupiter;
+    testRuntimeOnly libs.junit.jupiter.platform;
+    testImplementation libs.assertj;
+    
+    // temp while linking to source in other projects
+    implementation libs.junit.jupiter;
+}
