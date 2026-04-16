@@ -78,6 +78,10 @@ public class JsonReader {
         return readList("$", elementType);
     }
 
+    public <V> Map<String, V> rootMap() {
+        return readMap("$");
+    }
+
     public <E> E read(String jsonPath, Class<? extends E> elementType) {
         checkConcrete(elementType);
         return ctx.read(jsonPath, elementType);
@@ -116,7 +120,7 @@ public class JsonReader {
     }
 
     @SuppressWarnings("unchecked")
-    public <K, V> Map<K, V> readMap(String jsonPath) {
+    public <V> Map<String, V> readMap(String jsonPath) {
         return read(jsonPath, LinkedHashMap.class);
     }
 
