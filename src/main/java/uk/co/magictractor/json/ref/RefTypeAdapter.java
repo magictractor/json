@@ -21,7 +21,9 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -41,9 +43,7 @@ public class RefTypeAdapter<REF extends Ref<?>> extends TypeAdapter<REF> {
     //private final Class<KEY> keyType;
     private final List<Constructor<?>> constructors = new ArrayList<>();
     private final Function<Object, REF> refFunction;
-    // Two fields used because padding could be nulls.
-    private boolean removeListPadding = false;
-    private Object listPadding;
+    private Function<Object, Boolean> ignoreKeysFilter;
     private Function<Object, Object> keyMapping;
 
     public RefTypeAdapter(Class<?> refType) {
@@ -67,9 +67,27 @@ public class RefTypeAdapter<REF extends Ref<?>> extends TypeAdapter<REF> {
      * Specify values to be removed from a list of Json values. Typically used
      * to remove padding values.
      */
+    @Deprecated
     public void removeListPadding(Object listPadding) {
-        removeListPadding = true;
-        this.listPadding = listPadding;
+        ignoreKey(listPadding);
+    }
+
+    public RefTypeAdapter<REF> ignoreKey(Object value) {
+        return ignoreKeys(obj -> Objects.equals(obj, value));
+    }
+
+    public RefTypeAdapter<REF> ignoreKeys(Object... values) {
+        return ignoreKeys(obj -> Arrays.stream(values).anyMatch(value -> Objects.equals(obj, value)));
+    }
+
+    public RefTypeAdapter<REF> ignoreKeys(Function<Object, Boolean> ignoreKeysFilter) {
+        if (this.ignoreKeysFilter == null) {
+            this.ignoreKeysFilter = ignoreKeysFilter;
+        }
+        else {
+            this.ignoreKeysFilter = obj -> this.ignoreKeysFilter.apply(obj) || ignoreKeysFilter.apply(obj);
+        }
+        return this;
     }
 
     public <KEY> void mapKey(Function<KEY, KEY> keyMapping) {
@@ -129,19 +147,10 @@ public class RefTypeAdapter<REF extends Ref<?>> extends TypeAdapter<REF> {
 
         // Typically this is used for trait spoilers were all traits are "none"
         // "none", "none", "pathfinder" has also been seen
-        // TODO! change name to "ignoreValue"?
-        // TODO! differentiate between all instances and trailing?
-        if (removeListPadding) {
-            // TODO! pType and genericsType also set above
-            Type pType = param.getParameterizedType();
-            Type genericsType = ((ParameterizedType) pType).getActualTypeArguments()[0];
-            if (!genericsType.equals(listPadding.getClass())) {
-                throw new IllegalStateException(
-                    "Cannot remove elements of type " + listPadding.getClass().getName() + " from a List with generic type " + genericsType);
-            }
-
+        // TODO! differentiate between any value and trailing values?
+        if (ignoreKeysFilter != null) {
             if (List.class.isInstance(jsonValue)) {
-                jsonValue = ((List) jsonValue).stream().filter(elem -> !listPadding.equals(elem)).collect(Collectors.toList());
+                jsonValue = ((List) jsonValue).stream().filter(elem -> !ignoreKeysFilter.apply(elem)).collect(Collectors.toList());
             }
             else {
                 throw new IllegalStateException(
