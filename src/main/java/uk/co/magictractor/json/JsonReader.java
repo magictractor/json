@@ -21,9 +21,11 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -131,8 +133,18 @@ public class JsonReader {
         // TODO! this was commented out when moving code into the util project.
         // Looks like it it is needed. If so, maybe add SPI?
         // gsonBuilder.registerTypeAdapterFactory(new RefTypeAdapterFactory());
+
         // Removed because there are several enums in SpellStep where vanilla is fine.
         // gsonBuilder.registerTypeAdapterFactory(new RequireSpecificEnumTypeAdapterFactory());
+
+        // Use SPI to find TypeAdapterFactory implementations.
+        // This will include RefTypeAdapterFactory if the service project is on the classpath.
+        Iterator<TypeAdapterFactory> typeAdapterFactoryIterator = ServiceLoader.load(TypeAdapterFactory.class).iterator();
+        while (typeAdapterFactoryIterator.hasNext()) {
+            TypeAdapterFactory typeAdapterFactory = typeAdapterFactoryIterator.next();
+            gsonBuilder.registerTypeAdapterFactory(typeAdapterFactory);
+        }
+
         gsonBuilder.registerTypeAdapterFactory(ENUM_FACTORY);
 
         // Typical use will be to add source specific type adapters.

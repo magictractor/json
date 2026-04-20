@@ -60,10 +60,7 @@ test {
 
 java {
     sourceSets.main.java.srcDirs += ['../util/src/main/java']
-    // for Refs (this package includes adapters for the Refs)
-    sourceSets.main.java.srcDirs += ['../service/src/main/java']
-
-    // TODO! revisit versions. Can be reduce with earlier versions of dependencies.
+    // TODO! revisit versions. Can be reduced with earlier versions of dependencies.
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
     
@@ -97,7 +94,7 @@ dependencies {
     
     compileOnly("com.jayway.jsonpath:json-path:3.0.0")
     compileOnly("com.google.code.gson:gson:2.13.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+   // compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     
     testImplementation libs.junit.jupiter;
     testRuntimeOnly libs.junit.jupiter.platform;
