@@ -51,6 +51,17 @@ publishing {
 
 // https://docs.gradle.org/current/userguide/declaring_repositories.html
 repositories {
+    // mavenLocal() for snapshots of other uk.co.magictractor projects
+    //
+    // The other projects should include the maven-publish plugin and use
+    // the publishToMavenLocal task.
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html.
+    //
+    // Alternatively, dependencies on the source of other projects may be
+    // created by adding includesBuild entries to settings.local.gradle.
+    // See notes beside the magictractor.co.uk dependency declarations below.
+    mavenLocal()
+
     mavenCentral()
 }
 
@@ -59,7 +70,6 @@ test {
 }
 
 java {
-    sourceSets.main.java.srcDirs += ['../util/src/main/java']
     // TODO! revisit versions. Can be reduced with earlier versions of dependencies.
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
@@ -96,6 +106,13 @@ dependencies {
     compileOnly("com.google.code.gson:gson:2.13.2")
    // compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     
+    // Local source may be used instead of a jar.
+    // To do so:
+    // 1. edit settings.local.gradle and add "includeBuild '../util' etc
+    // 2. open the sibling project containing the source
+    // 3. Run Refresh Gradle project on this project
+    implementation('uk.co.magictractor:util:0.0.1-SNAPSHOT')
+
     testImplementation libs.junit.jupiter;
     testRuntimeOnly libs.junit.jupiter.platform;
     testImplementation libs.assertj;
