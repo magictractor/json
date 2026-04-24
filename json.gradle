@@ -111,7 +111,7 @@ dependencies {
     // 1. edit settings.local.gradle and add "includeBuild '../util' etc
     // 2. open the sibling project containing the source
     // 3. Run Refresh Gradle project on this project
-    implementation('uk.co.magictractor:util:0.0.1-SNAPSHOT')
+    implementation('uk.co.magictractor:magictractor-util:0.0.1-SNAPSHOT')
 
     testImplementation libs.junit.jupiter;
     testRuntimeOnly libs.junit.jupiter.platform;
