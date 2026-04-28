@@ -93,30 +93,18 @@ dependencies {
     // Logger implementation for unit tests.
     runtimeOnly libs.logback.classic
 
-    /**
-        This project should have minimal dependencies other than testing libraries. 
-        Dependencies have compileOnly scope because some util packages will not 
-        require the dependency.
-     */
-    
-    // Joiners and Splitters are used by util.converters.
-    compileOnly libs.guava
-    
-    compileOnly("com.jayway.jsonpath:json-path:3.0.0")
-    compileOnly("com.google.code.gson:gson:2.13.2")
-   // compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    implementation 'com.jayway.jsonpath:json-path:3.0.0'
+    implementation 'com.google.code.gson:gson:2.13.2'
+    // compileOnly("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     
     // Local source may be used instead of a jar.
     // To do so:
     // 1. edit settings.local.gradle and add "includeBuild '../util' etc
     // 2. open the sibling project containing the source
     // 3. Run Refresh Gradle project on this project
-    implementation('uk.co.magictractor:magictractor-util:0.0.1-SNAPSHOT')
+    implementation 'uk.co.magictractor:magictractor-util:0.0.1-SNAPSHOT'
 
     testImplementation libs.junit.jupiter;
     testRuntimeOnly libs.junit.jupiter.platform;
     testImplementation libs.assertj;
-    
-    // temp while linking to source in other projects
-    implementation libs.junit.jupiter;
 }
