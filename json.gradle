@@ -78,6 +78,11 @@ java {
     //withJavadocJar()
 }
 
+tasks.withType(JavaCompile) {
+    // Include details about deprecated code in build/reports/problems/problems-report.html
+    options.compilerArgs += ['-Xlint:deprecation']
+}
+
 tasks.withType(Jar) {
     destinationDirectory.set(file("$rootDir/jars"))
 }
