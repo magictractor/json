@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Ken Dobson
+ * Copyright 2026 Ken Dobson
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -37,93 +36,94 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.TypeRef;
+import com.jayway.jsonpath.internal.ParseContextImpl;
 import com.jayway.jsonpath.spi.json.GsonJsonProvider;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.GsonMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
-import uk.co.magictractor.util.exception.ExceptionUtil.SupplierWithException;
+import uk.co.magictractor.util.converter.Converter;
 
 /**
  *
  */
-public class JsonReader {
+public class JsonParser {
 
-    private final DocumentContext ctx;
+    // parseContext is set on demand is is then used to guard against the configuration changing
+    private ParseContextImpl parseContext;
 
-    // Commented out when code imported into util project.
-    // public JsonReader(DataResource dataResource, JsonReaderConfig config) {
-    //     this(() -> dataResource.openInputStream(), config);
-    // }
+    // TODO! bin this and register adapters on JsonParser directly
+    private JsonReaderConfig config;
 
-    public JsonReader(SupplierWithException<InputStream, IOException> jsonSupplier, JsonReaderConfig config) {
-        try (InputStream jsonStream = jsonSupplier.get()) {
-            ctx = JsonPath.parse(jsonStream, createConfiguration(config));
+    private List<GsonBuilderConfig> gsonBuilderConfigs = new ArrayList<>();
+
+    /** Caller is responsible for closing the {@code InputStream}. */
+    // TODO! add ability to handle encodings other than the default UTF-8.
+    // JsonPath.parse() does not accept a charset, but could use new ParseContextImpl(configuration).parse(json, charset);
+    // TODO! introduce JsonParser and pass that around instead of JsonReaderConfig
+    // JsonParser.parse(InputStream) and JsonParser.parse(InputStream) would return JsonDocument
+    // and maybe add interfaces? so Jayway JsonDocument?
+    //public JsonDocument(InputStream inputStream, JsonParserConfig config) {
+    //    ctx = JsonPath.parse(inputStream, createConfiguration(config));
+    //}
+    //
+    /**
+     * @deprecated use no args constructor and register adapters on this
+     *             instance
+     */
+    @Deprecated
+    public JsonParser(JsonReaderConfig config) {
+        // parseContext = new ParseContextImpl(createConfiguration(config));
+        this.config = config;
+    }
+
+    public JsonParser() {
+    }
+
+    public <T> void registerConverter(Class<T> type, Converter<String, T> converter) {
+        ensureNullContext();
+        gsonBuilderConfigs.add(new GsonBuilderAddConverter<>(type, converter));
+    }
+
+    // TODO! migrate to adding configuration like this and remove JsonParserConfig
+    // TODO! restrict this to the permitted classes for typeAdapter
+    public void registerTypeAdapter(Type type, Object typeAdapter) {
+        ensureNullContext();
+        gsonBuilderConfigs.add(new GsonBuilderAddAdapter(type, typeAdapter));
+    }
+
+    private void ensureNullContext() {
+        if (parseContext != null) {
+            throw new IllegalStateException();
+        }
+    }
+
+    public JsonDocument parse(InputStream inputStream, String charset) {
+        return new JsonDocument(getParseContext().parse(inputStream, charset));
+    }
+
+    public JsonDocument parse(InputStream inputStream) {
+        return parse(inputStream, "UTF-8");
+    }
+
+    public JsonDocument parse(Supplier<InputStream> inputStreamSupplier) {
+        return parse(inputStreamSupplier, "UTF-8");
+    }
+
+    public JsonDocument parse(Supplier<InputStream> inputStreamSupplier, String charset) {
+        try (InputStream inputStream = inputStreamSupplier.get()) {
+            return parse(inputStream, charset);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public DocumentContext getDocumentContext() {
-        return ctx;
-    }
-
-    public <E> E root(Class<? extends E> elementType) {
-        return read("$", elementType);
-    }
-
-    public <E> List<E> rootList(Class<? extends E> elementType) {
-        return readList("$", elementType);
-    }
-
-    public <V> Map<String, V> rootMap() {
-        return readMap("$");
-    }
-
-    public <E> E read(String jsonPath, Class<? extends E> elementType) {
-        checkConcrete(elementType);
-        return ctx.read(jsonPath, elementType);
-    }
-
-    public <E> List<E> readList(String jsonPath, Class<? extends E> elementType) {
-        checkConcrete(elementType);
-        return ctx.read(jsonPath, new TypeRef<List<E>>() {
-            @Override
-            public Type getType() {
-                return new ParameterizedType() {
-
-                    @Override
-                    public Type getRawType() {
-                        return List.class;
-                    }
-
-                    @Override
-                    public Type getOwnerType() {
-                        return null;
-                    }
-
-                    @Override
-                    public Type[] getActualTypeArguments() {
-                        return new Type[] { elementType };
-                    }
-                };
-            }
-        });
-    }
-
-    private void checkConcrete(Class<?> elementType) {
-        if (elementType.isInterface()) {
-            throw new IllegalArgumentException("elementType must be a concrete class");
+    private ParseContextImpl getParseContext() {
+        if (parseContext == null) {
+            parseContext = new ParseContextImpl(createConfiguration(config));
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    public <V> Map<String, V> readMap(String jsonPath) {
-        return read(jsonPath, LinkedHashMap.class);
+        return parseContext;
     }
 
     // Based on code from uk.co.magictractor.spew.core.response.parser.jayway.JaywayConfigurationCache
@@ -150,6 +150,10 @@ public class JsonReader {
         // Typical use will be to add source specific type adapters.
         if (config != null) {
             config.configureGsonBuilder(gsonBuilder);
+        }
+
+        for (GsonBuilderConfig gsonBuilderConfig : gsonBuilderConfigs) {
+            gsonBuilderConfig.configure(gsonBuilder);
         }
 
         Gson gson = gsonBuilder.create();
@@ -218,6 +222,41 @@ public class JsonReader {
 
             return result;
         }
-
     }
+
+    @FunctionalInterface
+    public interface GsonBuilderConfig {
+        void configure(GsonBuilder gsonBuilder);
+    }
+
+    private class GsonBuilderAddAdapter implements GsonBuilderConfig {
+        private final Type type;
+        private final Object typeAdapter;
+
+        /* default */ GsonBuilderAddAdapter(Type type, Object typeAdapter) {
+            this.type = type;
+            this.typeAdapter = typeAdapter;
+        }
+
+        @Override
+        public void configure(GsonBuilder gsonBuilder) {
+            gsonBuilder.registerTypeAdapter(type, typeAdapter);
+        }
+    }
+
+    private class GsonBuilderAddConverter<T> implements GsonBuilderConfig {
+        private final Class<T> type;
+        private final Converter<String, T> converter;
+
+        /* default */ GsonBuilderAddConverter(Class<T> type, Converter<String, T> converter) {
+            this.type = type;
+            this.converter = converter;
+        }
+
+        @Override
+        public void configure(GsonBuilder gsonBuilder) {
+            gsonBuilder.registerTypeAdapter(type, ConverterTypeAdapter.adapterFor(converter));
+        }
+    }
+
 }

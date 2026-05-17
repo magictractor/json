@@ -18,14 +18,15 @@ package uk.co.magictractor.json;
 import com.google.gson.GsonBuilder;
 
 /**
- *
+ * @deprecated config can now be set on a {@code JsonParser} instance
  */
-// TODO! just use Consumer<GsonBuilder>?
+@Deprecated
 public interface JsonReaderConfig {
 
     /**
      * Typically used to add source specific type adapters.
      */
+    @Deprecated
     void configureGsonBuilder(GsonBuilder gsonBuilder);
 
 }
