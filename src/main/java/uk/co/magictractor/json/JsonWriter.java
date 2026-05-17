@@ -27,7 +27,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.spi.json.GsonJsonProvider;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.GsonMappingProvider;
@@ -41,20 +40,6 @@ import uk.co.magictractor.util.exception.ExceptionUtil.SupplierWithException;
 public class JsonWriter {
 
     private final DocumentContext ctx;
-
-    // Commented out when code imported into util project.
-    //    public JsonWriter(DataResource dataResource, JsonReaderConfig config) {
-    //        try (InputStream in = dataResource.openInputStream()) {
-    //            ctx = JsonPath.parse(in, createConfiguration(config));
-    //        }
-    //        catch (IOException e) {
-    //            throw new UncheckedIOException(e);
-    //        }
-    //    }
-
-    public JsonWriter(Object object, JsonReaderConfig config) {
-        ctx = JsonPath.parse(object, createConfiguration(config));
-    }
 
     public JsonWriter(DocumentContext ctx) {
         this.ctx = ctx;
@@ -87,16 +72,12 @@ public class JsonWriter {
         }
     }
 
-    private Configuration createConfiguration(JsonReaderConfig config) {
+    private Configuration createConfiguration() {
         GsonBuilder gsonBuilder = new GsonBuilder();
 
         Gson gson = gsonBuilder.setPrettyPrinting().create();
         JsonProvider jsonProvider = new GsonJsonProvider(gson);
         MappingProvider mappingProvider = new GsonMappingProvider(gson);
-
-        if (config != null) {
-            config.configureGsonBuilder(gsonBuilder);
-        }
 
         return new Configuration.ConfigurationBuilder()
                 .jsonProvider(jsonProvider)
@@ -105,53 +86,3 @@ public class JsonWriter {
     }
 
 }
-
-//private final DocumentContext ctx;
-//
-//public JsonWriter(DataResource dataResource, JsonReaderConfig config) {
-//    try (InputStream in = dataResource.openInputStream()) {
-//        ctx = JsonPath.parse(in, createConfiguration(config));
-//    }
-//    catch (IOException e) {
-//        throw new UncheckedIOException(e);
-//    }
-//}
-//
-//public JsonWriter(Object object, JsonReaderConfig config) {
-//    ctx = JsonPath.parse(object, createConfiguration(config));
-//}
-//
-//public void write(OutputStream out) {
-//    write(out, StandardCharsets.UTF_8);
-//}
-//
-//public void write(OutputStream out, Charset charset) {
-//    write(new OutputStreamWriter(out, charset));
-//}
-//
-//public void write(Writer out) {
-//    try {
-//        out.append(ctx.jsonString());
-//        out.flush();
-//    }
-//    catch (IOException e) {
-//        throw new UncheckedIOException(e);
-//    }
-//}
-//
-//private Configuration createConfiguration(JsonReaderConfig config) {
-//    GsonBuilder gsonBuilder = new GsonBuilder();
-//
-//    Gson gson = gsonBuilder.setPrettyPrinting().create();
-//    JsonProvider jsonProvider = new GsonJsonProvider(gson);
-//    MappingProvider mappingProvider = new GsonMappingProvider(gson);
-//
-//    if (config != null) {
-//        config.configureGsonBuilder(gsonBuilder);
-//    }
-//
-//    return new Configuration.ConfigurationBuilder()
-//            .jsonProvider(jsonProvider)
-//            .mappingProvider(mappingProvider)
-//            .build();
-//}

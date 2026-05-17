@@ -28,6 +28,9 @@ import java.util.function.Supplier;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.InstanceCreator;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonSerializer;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -52,44 +55,45 @@ public class JsonParser {
     // parseContext is set on demand is is then used to guard against the configuration changing
     private ParseContextImpl parseContext;
 
-    // TODO! bin this and register adapters on JsonParser directly
-    private JsonReaderConfig config;
-
     private List<GsonBuilderConfig> gsonBuilderConfigs = new ArrayList<>();
 
-    /** Caller is responsible for closing the {@code InputStream}. */
-    // TODO! add ability to handle encodings other than the default UTF-8.
-    // JsonPath.parse() does not accept a charset, but could use new ParseContextImpl(configuration).parse(json, charset);
-    // TODO! introduce JsonParser and pass that around instead of JsonReaderConfig
-    // JsonParser.parse(InputStream) and JsonParser.parse(InputStream) would return JsonDocument
-    // and maybe add interfaces? so Jayway JsonDocument?
-    //public JsonDocument(InputStream inputStream, JsonParserConfig config) {
-    //    ctx = JsonPath.parse(inputStream, createConfiguration(config));
-    //}
-    //
-    /**
-     * @deprecated use no args constructor and register adapters on this
-     *             instance
-     */
-    @Deprecated
-    public JsonParser(JsonReaderConfig config) {
-        // parseContext = new ParseContextImpl(createConfiguration(config));
-        this.config = config;
-    }
-
-    public JsonParser() {
-    }
-
-    public <T> void registerConverter(Class<T> type, Converter<String, T> converter) {
+    public <T> JsonParser registerConverter(Class<T> type, Converter<String, T> converter) {
         ensureNullContext();
         gsonBuilderConfigs.add(new GsonBuilderAddConverter<>(type, converter));
+
+        return this;
     }
 
-    // TODO! migrate to adding configuration like this and remove JsonParserConfig
-    // TODO! restrict this to the permitted classes for typeAdapter
-    public void registerTypeAdapter(Type type, Object typeAdapter) {
+    /**
+     * Where possible, {@link #registerConverter()} should be preferred in case
+     * a backend other than Gson is enabled in future.
+     */
+    public JsonParser registerGsonTypeAdapter(Type type, TypeAdapter<?> typeAdapter) {
+        return registerGsonTypeAdapterObject(type, typeAdapter);
+    }
+
+    public JsonParser registerGsonTypeAdapter(Type type, InstanceCreator<?> instanceCreator) {
+        return registerGsonTypeAdapterObject(type, instanceCreator);
+    }
+
+    public JsonParser registerGsonTypeAdapter(Type type, JsonSerializer<?> jsonSerializer) {
+        return registerGsonTypeAdapterObject(type, jsonSerializer);
+    }
+
+    public JsonParser registerGsonTypeAdapter(Type type, JsonDeserializer<?> jsonDeserializer) {
+        return registerGsonTypeAdapterObject(type, jsonDeserializer);
+    }
+
+    /**
+     * Four classes are permitted for {@code typeAdapter}. These are checked in
+     * {@code GsonBuilder.registerTypeAdapter()}. In this class, the four
+     * permitted types each have a method that delegates to this method.
+     */
+    private JsonParser registerGsonTypeAdapterObject(Type type, Object typeAdapter) {
         ensureNullContext();
         gsonBuilderConfigs.add(new GsonBuilderAddAdapter(type, typeAdapter));
+
+        return this;
     }
 
     private void ensureNullContext() {
@@ -102,7 +106,12 @@ public class JsonParser {
         return new JsonDocument(getParseContext().parse(inputStream, charset));
     }
 
+    // https://pkg.go.dev/encoding/json
     public JsonDocument parse(InputStream inputStream) {
+        // <quote> JSON text SHALL be encoded in UTF-8, UTF-16, or UTF-32.</quote>
+        // TODO! maybe check the first bytes to identify UTF-16 and UTF-32, otherwise
+        // UTF-8 is assumed.
+        // https://www.rfc-editor.org/rfc/rfc7159.html#page-9
         return parse(inputStream, "UTF-8");
     }
 
@@ -121,13 +130,13 @@ public class JsonParser {
 
     private ParseContextImpl getParseContext() {
         if (parseContext == null) {
-            parseContext = new ParseContextImpl(createConfiguration(config));
+            parseContext = new ParseContextImpl(createConfiguration());
         }
         return parseContext;
     }
 
     // Based on code from uk.co.magictractor.spew.core.response.parser.jayway.JaywayConfigurationCache
-    private Configuration createConfiguration(JsonReaderConfig config) {
+    private Configuration createConfiguration() {
         GsonBuilder gsonBuilder = new GsonBuilder();
 
         // TODO! this was commented out when moving code into the util project.
@@ -146,11 +155,6 @@ public class JsonParser {
         }
 
         gsonBuilder.registerTypeAdapterFactory(ENUM_FACTORY);
-
-        // Typical use will be to add source specific type adapters.
-        if (config != null) {
-            config.configureGsonBuilder(gsonBuilder);
-        }
 
         for (GsonBuilderConfig gsonBuilderConfig : gsonBuilderConfigs) {
             gsonBuilderConfig.configure(gsonBuilder);
